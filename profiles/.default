@@ -1,0 +1,13 @@
+# This script clears all variables used by virtual machine profiles. It should
+# be sourced before any virtual machine profile in order to ensure that any
+# variables not set by the profile are set to a blank value.
+#
+# This file must NOT be modified unless a default setting is to be changed.
+
+vm_name=""
+vm_machine=""
+vm_cpu=""
+vm_memory=""
+vm_graphics=""
+vm_networking=""
+vm_image=""

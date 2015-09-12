@@ -1,0 +1,4 @@
+#!/bin/sh
+#tunctl -t $1 -u `id -un`
+ifconfig $1 0.0.0.0 promisc up && \
+brctl addif br0 $1

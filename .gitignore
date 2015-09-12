@@ -1,0 +1,9 @@
+# first, ignore all non-default profiles:
+profiles/*.conf
+
+# ignore any installation media anywhere:
+*.iso
+
+# ignore status files and lock file:
+.vmcreate.lock
+.vminfo

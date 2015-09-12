@@ -1,0 +1,81 @@
+#!/bin/bash
+
+show_usage()
+{
+	echo "usage:  vm-stop [-h] PROFILE"
+}
+
+show_help()
+{
+	echo "Stops all instances of a virtual machine profile"
+	show_usage
+	echo
+	echo "Arguments:"
+	echo "  PROFILE    The name of the profile to stop. All instances of that"
+	echo "             profile are immediately halted."
+	echo
+	echo "Options:"
+	echo "  -h         Show this help."
+}
+
+parse_args()
+{
+	export OPTIND=1 # reset and export so subshells see it
+	while [ $# -ge 1 ]
+	do
+		while getopts ":h" opt
+		do
+			case $opt in
+				h)
+					show_help
+					exit 0
+					;;
+				\?)
+					show_usage >&2
+					exit 1
+					;;
+				:)
+					show_usage >&2
+					exit 1
+					;;
+			esac
+		done
+		shift $(expr $OPTIND \- 1)
+		cmdargs=("${cmdargs[@]}" $1)
+		shift 1
+		OPTIND=1
+	done
+	if [ ${#cmdargs[@]} -lt 1 ]
+	then
+		show_usage >&2
+		exit 1
+	else
+		arg_profile="${cmdargs[0]}"
+		if [ ! -f "$EMUFOX_HOME/.vminfo/$arg_profile-00" ]
+		then
+			echo "error: no instances of profile '$arg_profile' are running" >&2
+			exit 2
+		fi
+	fi
+}
+
+if [ -z ${EMUFOX_HOME+x} ]
+then
+	export EMUFOX_HOME=$(realpath "$(dirname "$(realpath "$0")")/..")
+fi
+
+. $EMUFOX_HOME/emufox.conf
+
+arg_profile=
+
+parse_args "$@"
+
+pids=$("$_dir_scripts/vm-status" -o pid "$arg_profile")
+
+for pid in $pids
+do
+	kill $pid || exit 2
+done
+
+rm -f "$EMUFOX_HOME/.vminfo/$arg_profile"*
+

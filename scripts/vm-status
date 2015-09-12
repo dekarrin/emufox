@@ -1,0 +1,153 @@
+#!/bin/bash
+
+show_usage()
+{
+	echo "usage:  vm-status [-o OUTPUT [-o OUTPUT...]] [-h] PROFILE"
+	echo "        vm-status [-o OUTPUT [-o OUTPUT...]] [-h] -a"
+}
+
+show_help()
+{
+	echo "Checks the status of the virtual machines"
+	show_usage
+	echo
+	echo "Arguments:"
+	echo "  PROFILE    The name of the profile to check the status of. The status"
+	echo "             for each instace of that profile is displayed, or there"
+	echo "             will be no output if no instances of that profile are"
+	echo "             running."
+	echo
+	echo "Options:"
+	echo "  -a         List the status for all VM instances running instead of"
+	echo "             just a single profile's instances."
+	echo
+	echo "  -h         Show this help."
+	echo
+	echo "  -o OUTPUT  Display only the specified type of output. Multiple -o"
+	echo "             options may be specified. The following types of output are"
+	echo "             accepted as a parameter to -o:"
+	echo "               bridge    -  The name of the bridge interface the VM is"
+	echo "                            using (if any; will be '-' if the VM does"
+	echo "                            not use bridged networking)."
+	echo "               display   -  The display that the VM is using (if any;"
+	echo "                            will be '-' if the VM is running in"
+	echo "                            headless mode)."
+	echo "               profile   -  The name of the profile of the VM."
+	echo "               pid       -  The process ID of the VM's monitor console."
+	echo "               screen    -  The name of the screen session to which the"
+	echo "                            VMs monitor console is attached."
+}
+
+parse_args()
+{
+	export OPTIND=1 # reset and export so subshells see it
+	while [ $# -ge 1 ]
+	do
+		while getopts ":aho:" opt
+		do
+			case $opt in
+				a)
+					opt_list=1
+					;;
+				o)
+					if [ "$OPTARG" = bridge -o \
+					     "$OPTARG" = display -o \
+					     "$OPTARG" = profile -o \
+					     "$OPTARG" = pid -o \
+					     "$OPTARG" = screen ]
+					then
+						opt_output_all=
+						output_queue=("${output_queue[@]}" "$OPTARG")
+					else
+						echo "error: bad output option '$OPTARG'" >&2
+						exit 1
+					fi
+					;;
+				h)
+					show_help
+					exit 0
+					;;
+				\?)
+					show_usage >&2
+					exit 1
+					;;
+				:)
+					show_usage >&2
+					exit 1
+					;;
+			esac
+		done
+		shift $(expr $OPTIND \- 1)
+		cmdargs=("${cmdargs[@]}" $1)
+		shift 1
+		OPTIND=1
+	done
+	if [ ${#cmdargs[@]} -lt 1 -a -z "$opt_list" ]
+	then
+		show_usage >&2
+		exit 1
+	else
+		arg_profile="${cmdargs[0]}"
+	fi
+}
+
+default()
+{
+	while read line
+	do
+		if [ -z "$line" ]
+		then
+			echo "$1"
+		else
+			echo "$line"
+		fi
+	done
+}
+
+if [ -z ${EMUFOX_HOME+x} ]
+then
+	export EMUFOX_HOME=$(realpath "$(dirname "$(realpath "$0")")/..")
+fi
+
+. $EMUFOX_HOME/emufox.conf
+
+opt_list=
+opt_output_all=1
+optput_queue=()
+arg_profile=
+
+parse_args "$@"
+
+# default output queue
+[ "$opt_output_all" = 1 ] && output_queue=(pid profile screen display bridge)
+
+[ -d "$EMUFOX_HOME/.vminfo" ] || exit 0
+[ -n "$(ls "$EMUFOX_HOME/.vminfo")" ] || exit 0
+
+for file in "$EMUFOX_HOME"/.vminfo/*
+do
+	info=$(<"$file")
+	output=
+	s=
+
+	# note: these must have the same names as the accepted options
+	# (and therefore the same names as the options on the output
+	# queue)
+	pid=$(echo "$info" | cut -d ':' -f 1)
+	profile=$(echo "$info" | cut -d ':' -f 2)
+	display=$(echo "$info" | cut -d ':' -f 3 | default "-")
+	bridge=$(echo "$info" | cut -d ':' -f 4 | default "-")
+	screen=$(echo "$info" | cut -d ':' -f 5)
+
+	[ "$profile" = "$arg_profile" -o -n "$opt_list" ] || continue
+
+	for item in "${output_queue[@]}"
+	do
+		output="$output$s${!item}"
+		s=" "
+	done
+	echo "$output"
+done
+
+
+

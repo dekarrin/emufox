@@ -1,0 +1,235 @@
+#!/bin/bash
+
+# Ensure that two VMs are not being simultaneously created.
+# Prevents race condition for numbered resources that are based on number of
+# VMs created so far (such as TAP interfaces or VNC displays).
+obtain_lock()
+{
+	set -o noclobber
+	local curholder
+	local printed=0
+	while :
+	do
+		( echo $$ > "$EMUFOX_HOME"/.vmcreate.lock ) 2>/dev/null
+		[ $? = 0 ] && break
+		if [ "$printed" = 0 ]
+		then
+			curholder=$(cat "$EMUFOX_HOME"/.vmcreate.lock 2>/dev/null)
+			[ -n "$curholder" ] && ( echo "Waiting on PID $curholder to complete..." >&2 )
+		fi
+	done
+	set +o noclobber
+}
+
+show_usage()
+{
+	echo "usage:  vm-start [-c FILE] [-d TYPE] [-h] [-k LAYOUT] PROFILE"
+}
+
+show_help()
+{
+	echo "Starts a virtual machine"
+	show_usage
+	echo
+	echo "Arguments:"
+	echo "  PROFILE    The name of the profile to load the VM settings from."
+	echo "             There must exist a file with the name <profile>.conf in the"
+	echo "             profiles directory of Emufox."
+	echo
+	echo "Options:"
+	echo "  -c FILE    Attach a CD drive backed by the given image file to the VM"
+	echo "             and set the CD drive as the VM's boot device."
+	echo
+	echo "  -d TYPE    The type of display to start the VM with. Available"
+	echo "             display types are:"
+	echo "               vnc       -  Start a local VNC server on the next available"
+	echo "                            display. This is the default option."
+	echo "               headless  -  Do not attach a display."
+	echo
+	echo "  -h         Show this help."
+	echo
+	echo "  -k LAYOUT  The type of keyboard layout to use with the VM. This is"
+	echo "             necessary if the VM is started with a VNC display and the"
+	echo "             keyboard layout is not en-us (the default option)."
+}
+
+parse_args()
+{
+	export OPTIND=1 # reset and export so subshells see it
+	local minargs=$1
+	shift
+	while [ $# -ge 1 ]
+	do
+		while getopts ":c:d:hk:" opt
+		do
+			case $opt in
+				c)
+					if [ -f "$OPTARG" ]
+					then
+						opt_boot_cd="$OPTARG"
+					else
+						echo "error: CD image file '$OPTARG' does not exist" >&2
+						exit 2
+					fi
+					;;
+				d)
+					if [ "$OPTARG" = vnc -o "$OPTARG" = headless ]
+					then
+						opt_display="$OPTARG"
+					else
+						echo "error: display type must be either 'vnc' or 'headless'" >&2
+						exit 3
+					fi
+					;;
+				h)
+					show_help
+					exit 0
+					;;
+				k)
+					opt_keyboard="$OPTARG"
+					;;
+					
+				\?)
+					show_usage >&2
+					exit 1
+					;;
+				:)
+					show_usage >&2
+					exit 1
+					;;
+			esac
+		done
+		shift $(expr $OPTIND \- 1)
+		cmdargs=("${cmdargs[@]}" $1)
+		shift 1
+		OPTIND=1
+	done
+	[ ${#cmdargs[@]} -lt $minargs ] && { show_usage >&2; exit 1; }
+	if [ -f "$_dir_profiles/${cmdargs[0]}.conf" ]
+	then
+		arg_profile="${cmdargs[0]}"
+	else
+		echo "error: no configuration exists for profile '${cmdargs[0]}'" >&2
+		exit 4
+	fi
+}
+
+# only adds an option if test value ($2) is not empty
+add_vm_opt()
+{
+	if [ -n "$2" ]
+	then
+		if [ $# -gt 2 ]
+		then
+			cmd="$cmd -$1 $3"
+		else
+			cmd="$cmd -$1 $2"
+		fi
+	fi
+}
+
+# add a configuration option if the given value is 1
+add_cfg_opt()
+{
+	if [ "$2" = 1 ]
+	then
+		cmd="$cmd -$1"
+	fi
+}
+
+if [ -z ${EMUFOX_HOME+x} ]
+then
+	export EMUFOX_HOME=$(realpath "$(dirname "$(realpath "$0")")/..")
+fi
+
+. $EMUFOX_HOME/emufox.conf
+
+obtain_lock
+
+cmdargs=()
+opt_boot_cd=
+opt_display=vnc
+opt_keyboard=
+arg_profile=
+
+parse_args 1 "$@"
+
+. "$_dir_profiles/.default"
+. "$_dir_profiles/${arg_profile}.conf"
+
+cmd="$_emu_cmd"
+
+add_cfg_opt "enable-kvm" "$_emu_kvm"
+
+add_vm_opt name "$vm_name"
+add_vm_opt machine "$vm_machine"
+add_vm_opt cpu "$vm_cpu"
+add_vm_opt m "$vm_memory"
+add_vm_opt vga "$vm_graphics"
+add_vm_opt drive "$vm_image" "file=$_dir_images/$vm_image,if=virtio"
+add_vm_opt monitor stdio
+
+# set up networking parameters
+case "$vm_networking" in
+	bridged)
+		# get a [l]ist of running vms [s]orted by bridge interface natural order and [o]utput only tap
+		last_tap=$($_dir_scripts/vm-status -a -o bridge | sort | tail -n 1)
+		last_num=${last_tap:3}
+		if [ -z "$last_num" ]
+		then
+			if_name=tap0
+		else
+			if_name=tap$(expr $last_num + 1)
+		fi
+		add_vm_opt net "tap,ifname=$if_name,script=$_dir_scripts/ifup,downscript=$_dir_scripts/ifdown"
+		add_vm_opt net "nic,model=virtio"
+		;;
+	passthrough)
+		if_name=
+		add_vm_opt netdev "user,id=vmnic"
+		add_vm_opt device "virtio-net,netdev=vmnic"
+		;;
+	*)
+		echo "warning: config has unsupported network type '$vm_networking'; ignoring" >&2
+		;;
+esac
+
+# add the optionals that can be added directly
+add_vm_opt k "$opt_keyboard"
+add_vm_opt drive "$opt_boot_cd" "file=$(realpath "$opt_boot_cd" 2>/dev/null),media=cdrom"
+add_vm_opt boot "$opt_boot_cd" "d"
+
+# now add display parameter
+case "$opt_display" in
+	vnc)
+		# get a [l]ist of running vms [s]orted by bridge interface natural order and [o]utput only tap
+		last_vnc=$($_dir_scripts/vm-status -a -o display | sort | tail -n 1)
+		disp_num="$(expr $last_vnc + 1)"
+		add_vm_opt display "vnc=:$disp_num"
+		;;
+	headless)
+		disp_num=
+		add_vm_opt display none
+		;;
+esac
+
+# Create unique VM infofile for this instance of the profile
+[ -d "$EMUFOX_HOME/.vminfo" ] || mkdir "$EMUFOX_HOME/.vminfo"
+
+num=00
+while [ -f "$EMUFOX_HOME/.vminfo/$arg_profile-$num" ]
+do
+	printf -v num "%02d" $(expr $num + 1)
+done
+infofile="$EMUFOX_HOME/.vminfo/$arg_profile-$num"
+
+# spawn the VM with monitor in screen
+screen_session="$_screen_prefix$arg_profile-$num"
+screen -S "$screen_session" -dm $cmd || { echo "error: could not start screen session" >&2; exit 4 }
+
+# now get the PID of the VM monitor
+screen_pid=$(ps aux | grep 'SCREEN -S '$screen_session | grep -v grep | awk '{print $2}')
+monitor_pid=$(ps --ppid $screen_pid | tail -n 1 | awk '{print $1}')
+
+echo "$monitor_pid:$arg_profile:$disp_num:$if_name:$screen_session" > $infofile
+rm "$EMUFOX_HOME"/.vmcreate.lock
