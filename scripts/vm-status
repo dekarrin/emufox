@@ -2,8 +2,8 @@
 
 show_usage()
 {
-	echo "usage:  vm-status [-o OUTPUT [-o OUTPUT...]] [-h] PROFILE"
-	echo "        vm-status [-o OUTPUT [-o OUTPUT...]] [-h] -a"
+	echo "usage:  vm-status [-o OUTPUT [-o OUTPUT...]] [-ah] PROFILE"
+	echo "        vm-status [-o OUTPUT [-o OUTPUT...]] [-ah] -l"
 }
 
 show_help()
@@ -18,10 +18,16 @@ show_help()
 	echo "             running."
 	echo
 	echo "Options:"
-	echo "  -a         List the status for all VM instances running instead of"
-	echo "             just a single profile's instances."
+	echo "  -a         Show extended information on each VM instance. Under normal"
+	echo "             execution, some pieces of information are not displayed. -a"
+	echo "             is equivalent to passing a -o option for every possible"
+	echo "             output type. If any -o options are passed along with -a,"
+	echo "             that output option will be duplicated."
 	echo
 	echo "  -h         Show this help."
+	echo
+	echo "  -l         List the status for all VM instances running instead of"
+	echo "             just a single profile's instances."
 	echo
 	echo "  -o OUTPUT  Display only the specified type of output. Multiple -o"
 	echo "             options may be specified. The following types of output are"
@@ -47,10 +53,13 @@ parse_args()
 	export OPTIND=1 # reset and export so subshells see it
 	while [ $# -ge 1 ]
 	do
-		while getopts ":aho:" opt
+		while getopts ":ahlo:" opt
 		do
 			case $opt in
 				a)
+					optput_queue=("${output_queue[@]}" pid profile screen display bridge)
+					;;
+				l)
 					opt_list=1
 					;;
 				o)
