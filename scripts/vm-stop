@@ -51,7 +51,13 @@ parse_args()
 		exit 1
 	else
 		arg_profile="${cmdargs[0]}"
-		if [ ! -f "$EMUFOX_HOME/.vminfo/$arg_profile-00" ]
+		run_count=0
+		for f in "$EMUFOX_HOME/.vminfo/$arg_profile-"*
+		do
+			[ "$f" = "$EMUFOX_HOME/.vminfo/$arg_profile-*" ] && break
+			(( run_count++ ))
+		done
+		if [ $run_count -eq 0 ]
 		then
 			echo "error: no instances of profile '$arg_profile' are running" >&2
 			exit 2
@@ -70,12 +76,9 @@ arg_profile=
 
 parse_args "$@"
 
-pids=$("$_dir_scripts/vm-status" -s -o pid "$arg_profile")
-
-for pid in $pids
+"$_dir_scripts/vm-status" -s -o pid -o statfile "$arg_profile" | while read line
 do
-	kill $pid || exit 2
+	pid=$(echo $line | cut -d ':' -f 1)
+	infofile=$(echo $line | cut -d ':' -f 2)
+	kill $pid && rm -f "$EMUFOX_HOME/.vminfo/$infofile"
 done
-
-rm -f "$EMUFOX_HOME/.vminfo/$arg_profile"*
-
