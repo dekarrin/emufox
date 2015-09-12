@@ -2,8 +2,8 @@
 
 show_usage()
 {
-	echo "usage:  vm-status [-o OUTPUT [-o OUTPUT...]] [-ah] PROFILE"
-	echo "        vm-status [-o OUTPUT [-o OUTPUT...]] [-ah] -l"
+	echo "usage:  vm-status [-o OUTPUT [-o OUTPUT...]] [-ahs] PROFILE"
+	echo "        vm-status [-o OUTPUT [-o OUTPUT...]] [-ahs] -l"
 }
 
 show_help()
@@ -34,10 +34,12 @@ show_help()
 	echo "             accepted as a parameter to -o:"
 	echo "               bridge    -  The name of the bridge interface the VM is"
 	echo "                            using (if any; will be '-' if the VM does"
-	echo "                            not use bridged networking)."
+	echo "                            not use bridged networking and vm-status is"
+	echo "                            run in 'script mode' with -s)."
 	echo "               display   -  The display that the VM is using (if any;"
 	echo "                            will be '-' if the VM is running in"
-	echo "                            headless mode)."
+	echo "                            headless mode and vm-status is run in"
+	echo "                            'script mode' with -s)."
 	echo "               pid       -  The process ID of the VM's monitor console."
 	echo "               profile   -  The name of the profile of the VM."
 	echo "               screen    -  The name of the screen session to which the"
@@ -46,6 +48,9 @@ show_help()
 	echo "                            information on the running VM. This file"
 	echo "                            will be located in the .vminfo directory of"
 	echo "                            the EmuFox system."
+	echo
+	echo "  -s         Execute in 'script mode'; output is formatted in a way that"
+	echo "             makes it easy to process the output with scripts."
 }
 
 parse_args()
@@ -53,14 +58,18 @@ parse_args()
 	export OPTIND=1 # reset and export so subshells see it
 	while [ $# -ge 1 ]
 	do
-		while getopts ":ahlo:" opt
+		while getopts ":ashlo:" opt
 		do
 			case $opt in
 				a)
-					optput_queue=("${output_queue[@]}" pid profile screen display bridge)
+					opt_output_default=
+					output_queue=("${output_queue[@]}" pid profile screen display bridge statfile)
 					;;
 				l)
 					opt_list=1
+					;;
+				s)
+					opt_script=1
 					;;
 				o)
 					if [ "$OPTARG" = bridge -o \
@@ -70,7 +79,7 @@ parse_args()
 					     "$OPTARG" = screen -o \
 					     "$OPTARG" = statfile ]
 					then
-						opt_output_all=
+						opt_output_default=
 						output_queue=("${output_queue[@]}" "$OPTARG")
 					else
 						echo "error: bad output option '$OPTARG'" >&2
@@ -118,6 +127,56 @@ default()
 	done
 }
 
+load_info()
+{
+	defval="(none)"
+	[ -n "$opt_script" ] && defval=-
+	info="$(<"$1")"
+
+	# note: these must have the same names as the accepted options
+	# (and therefore the same names as the options on the output
+	# queue)
+	pid=$(echo "$info" | cut -d ':' -f 1)
+	profile=$(echo "$info" | cut -d ':' -f 2)
+	display=$(echo "$info" | cut -d ':' -f 3 | default $defval)
+	bridge=$(echo "$info" | cut -d ':' -f 4 | default $defval)
+	screen=$(echo "$info" | cut -d ':' -f 5)
+	statfile="$(basename "$1")"
+}
+
+precalc_widths()
+{
+	# first do titles
+	index=0
+	for item in ${output_queue[@]}
+	do 
+		col_widths[$index]=${#titles[$item]}
+		(( index++ ))
+	done
+
+	# now prescan the files
+	for file in "$EMUFOX_HOME"/.vminfo/*
+	do
+		load_info "$file"
+		[ "$profile" = "$arg_profile" -o -n "$opt_list" ] || continue
+		index=0
+		for item in ${output_queue[@]}
+		do
+			val="${!item}"
+			[ "${#val}" -gt "${col_widths[$index]}" ] && col_widths[$index]=${#val}
+			(( index++ ))
+		done
+	done
+
+	# add 2 for pretty spacing
+	index=0
+	while [ $index -lt ${#col_widths[@]} ]
+	do
+		col_widths[$index]=$(expr ${col_widths[$index]} + 2)
+		(( index++ ))
+	done
+}
+
 if [ -z ${EMUFOX_HOME+x} ]
 then
 	export EMUFOX_HOME=$(realpath "$(dirname "$(realpath "$0")")/..")
@@ -125,44 +184,68 @@ fi
 
 . $EMUFOX_HOME/emufox.conf
 
+declare -A titles
+titles[pid]=PID
+titles[profile]="VM Profile"
+titles[display]="VNC Display"
+titles[bridge]="Bridge Interface"
+titles[screen]="Screen Session"
+titles[statfile]="Info File"
+
 opt_list=
-opt_output_all=1
+opt_script=
+opt_output_default=1
 optput_queue=()
 arg_profile=
 
 parse_args "$@"
 
 # default output queue
-[ "$opt_output_all" = 1 ] && output_queue=(pid profile screen display bridge)
+[ "$opt_output_default" = 1 ] && output_queue=(pid profile screen display bridge)
 
 [ -d "$EMUFOX_HOME/.vminfo" ] || exit 0
 [ -n "$(ls "$EMUFOX_HOME/.vminfo")" ] || exit 0
 
+# setup col_widths var
+index=0
+while [ $index -lt ${#output_queue[@]} ]
+do
+	col_widths[$index]=0
+	(( index++ ))
+done
+
+if [ -z "$opt_script" ]
+then
+	precalc_widths
+
+	# output titles:
+	output=
+	index=0
+	for item in ${output_queue[@]}
+	do
+		output="$output$(printf "%-${col_widths[$index]}s" "${titles[$item]}")"
+		(( index++ ))
+	done
+	echo "$output"
+fi
+
+# output actual data
 for file in "$EMUFOX_HOME"/.vminfo/*
 do
-	info=$(<"$file")
-	output=
-	s=
-
-	# note: these must have the same names as the accepted options
-	# (and therefore the same names as the options on the output
-	# queue)
-	pid=$(echo "$info" | cut -d ':' -f 1)
-	profile=$(echo "$info" | cut -d ':' -f 2)
-	display=$(echo "$info" | cut -d ':' -f 3 | default "-")
-	bridge=$(echo "$info" | cut -d ':' -f 4 | default "-")
-	screen=$(echo "$info" | cut -d ':' -f 5)
-	statfile="$(basename $file)"
+	load_info "$file"
 
 	[ "$profile" = "$arg_profile" -o -n "$opt_list" ] || continue
 
+	output=
+	index=0
+	s=
 	for item in "${output_queue[@]}"
 	do
-		output="$output$s${!item}"
-		s=" "
+		output="$output$s$(printf "%-${col_widths[$index]}s" ${!item})"
+		[ -n "$opt_script" ] && s=:
+		(( index++ ))
 	done
 	echo "$output"
 done
-
 
 

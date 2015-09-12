@@ -173,7 +173,7 @@ add_vm_opt monitor stdio
 case "$vm_networking" in
 	bridged)
 		# get a [l]ist of running vms [s]orted by bridge interface natural order and [o]utput only tap
-		last_tap=$($_dir_scripts/vm-status -l -o bridge | sort | tail -n 1)
+		last_tap=$($_dir_scripts/vm-status -ls -o bridge | sort | tail -n 1)
 		last_num=${last_tap:3}
 		if [ -z "$last_num" ]
 		then
@@ -203,7 +203,7 @@ add_vm_opt boot "$opt_boot_cd" "d"
 case "$opt_display" in
 	vnc)
 		# get a [l]ist of running vms [s]orted by bridge interface natural order and [o]utput only tap
-		last_vnc=$($_dir_scripts/vm-status -l -o display | sort | tail -n 1)
+		last_vnc=$($_dir_scripts/vm-status -ls -o display | sort | tail -n 1)
 		disp_num="$(expr $last_vnc + 1)"
 		add_vm_opt display "vnc=:$disp_num"
 		;;

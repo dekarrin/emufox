@@ -70,7 +70,7 @@ arg_profile=
 
 parse_args "$@"
 
-pids=$("$_dir_scripts/vm-status" -o pid "$arg_profile")
+pids=$("$_dir_scripts/vm-status" -s -o pid "$arg_profile")
 
 for pid in $pids
 do
