@@ -12,10 +12,18 @@ obtain_lock()
 	do
 		( echo $$ > "$EMUFOX_HOME"/.vmcreate.lock ) 2>/dev/null
 		[ $? = 0 ] && break
+		if [ -n "$opt_force" ]
+		then
+			echo "warning: lockfile already exists; will be clobbered due to -f" >&2
+			set +o noclobber
+			echo $$ > "$EMUFOX_HOME"/.vmcreate.lock
+			break
+		fi
 		if [ "$printed" = 0 ]
 		then
 			curholder=$(cat "$EMUFOX_HOME"/.vmcreate.lock 2>/dev/null)
 			[ -n "$curholder" ] && ( echo "Waiting on PID $curholder to complete..." >&2 )
+			printed=1
 		fi
 	done
 	set +o noclobber
@@ -23,7 +31,7 @@ obtain_lock()
 
 show_usage()
 {
-	echo "usage:  vm-start [-c FILE] [-d TYPE] [-h] [-k LAYOUT] PROFILE"
+	echo "usage:  vm-start [-c CDIMAGE] [-d DISPLAY] [-k LAYOUT] [-hf] PROFILE"
 }
 
 show_help()
@@ -32,25 +40,32 @@ show_help()
 	show_usage
 	echo
 	echo "Arguments:"
-	echo "  PROFILE    The name of the profile to load the VM settings from."
-	echo "             There must exist a file with the name <profile>.conf in the"
-	echo "             profiles directory of Emufox."
+	echo "  PROFILE     The name of the profile to load the VM settings from."
+	echo "              There must exist a file with the name <profile>.conf in the"
+	echo "              profiles directory of Emufox."
 	echo
 	echo "Options:"
-	echo "  -c FILE    Attach a CD drive backed by the given image file to the VM"
-	echo "             and set the CD drive as the VM's boot device."
+	echo "  -c CDIMAGE  Attach a CD drive backed by the given image file to the VM"
+	echo "              and set the CD drive as the VM's boot device."
 	echo
-	echo "  -d TYPE    The type of display to start the VM with. Available"
-	echo "             display types are:"
-	echo "               vnc       -  Start a local VNC server on the next available"
-	echo "                            display. This is the default option."
-	echo "               headless  -  Do not attach a display."
+	echo "  -d DISPLAY  The type of display to start the VM with. Available"
+	echo "              display types are:"
+	echo "                vnc       -  Start a local VNC server on the next available"
+	echo "                             display. This is the default option."
+	echo "                headless  -  Do not attach a display."
 	echo
-	echo "  -h         Show this help."
+	echo "  -f          Force the immediate creation of a VM instance, bypassing"
+	echo "              the wait for any currently-running processes that are"
+	echo "              creating a VM. If another process is creating a VM at the"
+	echo "              same time when -f is used, that VM instance and the one"
+	echo "              being started by the current invokation may compete for"
+	echo "              resources."
 	echo
-	echo "  -k LAYOUT  The type of keyboard layout to use with the VM. This is"
-	echo "             necessary if the VM is started with a VNC display and the"
-	echo "             keyboard layout is not en-us (the default option)."
+	echo "  -h          Show this help."
+	echo
+	echo "  -k LAYOUT   The type of keyboard layout to use with the VM. This is"
+	echo "              necessary if the VM is started with a VNC display and the"
+	echo "              keyboard layout is not en-us (the default option)."
 }
 
 parse_args()
@@ -60,7 +75,7 @@ parse_args()
 	shift
 	while [ $# -ge 1 ]
 	do
-		while getopts ":c:d:hk:" opt
+		while getopts ":c:d:fhk:" opt
 		do
 			case $opt in
 				c)
@@ -80,6 +95,9 @@ parse_args()
 						echo "error: display type must be either 'vnc' or 'headless'" >&2
 						exit 3
 					fi
+					;;
+				f)
+					opt_force=1
 					;;
 				h)
 					show_help
@@ -150,6 +168,7 @@ cmdargs=()
 opt_boot_cd=
 opt_display=vnc
 opt_keyboard=
+opt_force=
 arg_profile=
 
 parse_args 1 "$@"
