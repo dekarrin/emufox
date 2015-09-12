@@ -36,8 +36,9 @@ show_usage()
 
 show_help()
 {
-	echo "Starts a virtual machine"
 	show_usage
+	echo
+	echo "Starts a virtual machine"
 	echo
 	echo "Arguments:"
 	echo "  PROFILE     The name of the profile to load the VM settings from."
