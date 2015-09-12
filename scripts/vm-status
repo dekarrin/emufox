@@ -172,7 +172,7 @@ precalc_widths()
 	index=0
 	while [ $index -lt ${#col_widths[@]} ]
 	do
-		col_widths[$index]=$(expr ${col_widths[$index]} + 2)
+		col_widths[$index]=$(expr ${col_widths[$index]} + $col_spacing)
 		(( index++ ))
 	done
 }
@@ -191,6 +191,8 @@ titles[display]="VNC Display"
 titles[bridge]="Bridge Interface"
 titles[screen]="Screen Session"
 titles[statfile]="Info File"
+
+col_spacing=3
 
 opt_list=
 opt_script=

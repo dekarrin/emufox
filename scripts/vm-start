@@ -170,6 +170,9 @@ opt_force=
 arg_profile=
 
 parse_args 1 "$@"
+
+[ $(id -u) = "0" ] || { echo "error: root permissions required" >&2; exit 6; }
+
 obtain_lock
 
 . "$_dir_profiles/.default"
@@ -250,5 +253,6 @@ screen_pid=$(ps aux | grep 'SCREEN -S '$screen_session | grep -v grep | awk '{pr
 monitor_pid=$(ps --ppid $screen_pid | tail -n 1 | awk '{print $1}')
 
 echo "$monitor_pid:$arg_profile:$disp_num:$if_name:$screen_session" > $infofile
+
 rm "$EMUFOX_HOME"/.vmcreate.lock
 
