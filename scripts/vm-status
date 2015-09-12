@@ -32,10 +32,14 @@ show_help()
 	echo "               display   -  The display that the VM is using (if any;"
 	echo "                            will be '-' if the VM is running in"
 	echo "                            headless mode)."
-	echo "               profile   -  The name of the profile of the VM."
 	echo "               pid       -  The process ID of the VM's monitor console."
+	echo "               profile   -  The name of the profile of the VM."
 	echo "               screen    -  The name of the screen session to which the"
 	echo "                            VMs monitor console is attached."
+	echo "               statfile  -  The name of the file that contains"
+	echo "                            information on the running VM. This file"
+	echo "                            will be located in the .vminfo directory of"
+	echo "                            the EmuFox system."
 }
 
 parse_args()
@@ -54,7 +58,8 @@ parse_args()
 					     "$OPTARG" = display -o \
 					     "$OPTARG" = profile -o \
 					     "$OPTARG" = pid -o \
-					     "$OPTARG" = screen ]
+					     "$OPTARG" = screen -o \
+					     "$OPTARG" = statfile ]
 					then
 						opt_output_all=
 						output_queue=("${output_queue[@]}" "$OPTARG")
@@ -138,6 +143,7 @@ do
 	display=$(echo "$info" | cut -d ':' -f 3 | default "-")
 	bridge=$(echo "$info" | cut -d ':' -f 4 | default "-")
 	screen=$(echo "$info" | cut -d ':' -f 5)
+	statfile="$(basename $file)"
 
 	[ "$profile" = "$arg_profile" -o -n "$opt_list" ] || continue
 
