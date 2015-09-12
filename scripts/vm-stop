@@ -76,6 +76,8 @@ arg_profile=
 
 parse_args "$@"
 
+[ $(id -u) = "0" ] || { echo "error: root permissions required" >&2; exit 6; }
+
 "$_dir_scripts/vm-status" -s -o pid -o statfile "$arg_profile" | while read line
 do
 	pid=$(echo $line | cut -d ':' -f 1)
