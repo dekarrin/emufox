@@ -162,8 +162,6 @@ fi
 
 . $EMUFOX_HOME/emufox.conf
 
-obtain_lock
-
 cmdargs=()
 opt_boot_cd=
 opt_display=vnc
@@ -172,6 +170,7 @@ opt_force=
 arg_profile=
 
 parse_args 1 "$@"
+obtain_lock
 
 . "$_dir_profiles/.default"
 . "$_dir_profiles/${arg_profile}.conf"
@@ -244,7 +243,7 @@ infofile="$EMUFOX_HOME/.vminfo/$arg_profile-$num"
 
 # spawn the VM with monitor in screen
 screen_session="$_screen_prefix$arg_profile-$num"
-screen -S "$screen_session" -dm $cmd || { echo "error: could not start screen session" >&2; exit 4 }
+screen -S "$screen_session" -dm $cmd || { echo "error: could not start screen session" >&2; exit 4; }
 
 # now get the PID of the VM monitor
 screen_pid=$(ps aux | grep 'SCREEN -S '$screen_session | grep -v grep | awk '{print $2}')
@@ -252,3 +251,4 @@ monitor_pid=$(ps --ppid $screen_pid | tail -n 1 | awk '{print $1}')
 
 echo "$monitor_pid:$arg_profile:$disp_num:$if_name:$screen_session" > $infofile
 rm "$EMUFOX_HOME"/.vmcreate.lock
+
