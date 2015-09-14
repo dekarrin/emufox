@@ -1,0 +1,171 @@
+#!/bin/bash
+
+show_usage()
+{
+cat <<-ENDUSAGE
+vm-clean [-ahf] [-r OBS_FILE] [-w OBS_FILE]
+ENDUSAGE
+}
+
+err_usage()
+{
+	echo -n "usage: " >&2
+	show_usage >&2
+	exit 1
+}
+
+show_help()
+{
+	show_usage
+	cat <<-ENDHELP
+
+Cleans all unused/obsolete virtual machine info files
+
+Options:
+  -a
+      Apply previously written obselete-infofile lists (delete all infofiles
+      contained in them) before typical operation.
+      
+  -r OBS_FILE
+      If -a is specified, -r gives the obsolete-infofile list file to apply. If
+      -r is omitted, all obsolete-infofile list files in the default location (a
+      subdirectory of EMUFOX_HOME) are used, and are deleted afterwards.
+
+  -h
+      Show this help.
+
+  -f
+      Write the list of obsolete infofiles to a file rather than deleting the
+      infofiles.
+      
+  -w OBS_FILE
+      If -f is specified, -w gives the file to write the obsolete-infofile list
+      to. If -f is omitted, a file in the default location (a subdirectory of
+      EMUFOX_HOME) is used instead. By default, only files in the default
+      location are used by vm-status to remove obselete entries from its output.
+ENDHELP
+}
+
+parse_args()
+{
+	export OPTIND=1 # reset and export so subshells see it
+	while [ $# -ge 1 ]
+	do
+		while getopts ":afhr:w:" opt
+		do
+			case $opt in
+				a)
+					opt_apply=1;;
+				f)
+					opt_use_file=1;;
+				h)
+					show_help
+					exit 0
+					;;
+				r)
+					opt_read_file="$OPTARG";;
+				w)
+					opt_write_file="$OPTARG";;
+				\?)
+					show_usage >&2
+					exit 1
+					;;
+				:)
+					show_usage >&2
+					exit 1
+					;;
+			esac
+		done
+		shift $(expr $OPTIND \- 1)
+		cmdargs=("${cmdargs[@]}" $1)
+		shift 1
+		OPTIND=1
+	done
+}
+
+in_file()
+{
+	while read line
+	do
+		[ "$1" == "$line" ] && return 0
+	done < "$2"
+	return 1
+}
+
+if [ -z ${EMUFOX_HOME+x} ]
+then
+	export EMUFOX_HOME=$(realpath "$(dirname "$(realpath "$0")")/..")
+fi
+
+. $EMUFOX_HOME/emufox.conf
+
+opt_write_file=
+opt_read_file=
+opt_use_file=
+opt_apply=
+
+parse_args "$@"
+
+if [ -n "$opt_apply" ]
+then
+	list_files=()
+	if [ -n "$opt_read_file" ]
+	then
+		list_files=("$opt_read_file")
+	elif [ -d "$EMUFOX_HOME"/.obsolete ]
+	then
+		for f in "$EMUFOX_HOME"/.obsolete/*
+		do
+			[ "$f" = "$EMUFOX_HOME/.obsolete/*" ] && break
+			list_files=("${list_files[@]}" "$f")
+		done
+	fi
+	for obs_file in "${list_files[@]}"
+	do
+		while read line
+		do
+			rm -f "$EMUFOX_HOME"/.vminfo/$line
+		done < "$obs_file"
+		[ -z "$opt_read_file" ] && rm -f "$obs_file"
+	done
+fi
+
+# if in use_file mode, get the file to write obsolete infofiles to
+if [ -n "$opt_use_file" ]
+then
+	obs_file="$opt_write_file"
+	if [ -z "$obs_file" ]
+	then
+		obs_dir="$EMUFOX_HOME"/.obsolete
+		[ -d "$obs_dir" ] || mkdir -m 770 "$obs_dir"
+
+		# get last file:
+		filenum=$(ls "$obs_dir" | sort | tail -n 1)
+		if [ -n "$filenum" -a ! -w "$obs_dir/$filenum" ]
+		then
+			printf -v filenum "%02d" $(expr $filenum + 1)
+		fi
+		[ -z "$filenum" ] && filenum=00
+		obs_file="$obs_dir/$filenum"
+	fi
+	touch "$obs_file" || exit 1
+fi
+
+for infofile in "$EMUFOX_HOME"/.vminfo/*
+do
+	[ "$infofile" = "$EMUFOX_HOME"/.vminfo/"*" ] && break
+	pid=$(cut -d ':' -f 1 < "$infofile")
+	cmd="$(ps -p $pid -o args=)"
+	# will not handle case where pid is reassigned to a new VM;
+	# we need a uid in the command to make this work
+	if [[ "$cmd" != "$_emu_cmd"* ]]
+	then
+		if [ -n "$opt_use_file" ]
+		then
+			filename="$(basename "$infofile")"
+			in_file "$filename" "$obs_file" || echo "$filename" >> "$obs_file"
+		else
+			rm -f "$infofile"
+		fi
+	fi
+done

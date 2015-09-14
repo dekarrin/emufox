@@ -7,3 +7,4 @@ profiles/*.conf
 # ignore status files and lock file:
 .vmcreate.lock
 .vminfo
+.obsolete

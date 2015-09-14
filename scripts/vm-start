@@ -236,7 +236,7 @@ case "$opt_display" in
 esac
 
 # Create unique VM infofile for this instance of the profile
-[ -d "$EMUFOX_HOME/.vminfo" ] || mkdir "$EMUFOX_HOME/.vminfo"
+[ -d "$EMUFOX_HOME/.vminfo" ] || mkdir -m 770 "$EMUFOX_HOME/.vminfo"
 
 num=00
 while [ -f "$EMUFOX_HOME/.vminfo/$arg_profile-$num" ]
@@ -253,7 +253,7 @@ screen -S "$screen_session" -dm $cmd || { echo "error: could not start screen se
 screen_pid=$(ps aux | grep 'SCREEN -S '$screen_session | grep -v grep | awk '{print $2}')
 monitor_pid=$(ps --ppid $screen_pid | tail -n 1 | awk '{print $1}')
 
-echo "$monitor_pid:$arg_profile:$disp_num:$if_name:$screen_session" > $infofile
+echo "$monitor_pid:$arg_profile:$disp_num:$if_name:$screen_session" > "$infofile"
 
 rm "$EMUFOX_HOME"/.vmcreate.lock
 
