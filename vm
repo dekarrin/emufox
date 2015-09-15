@@ -6,17 +6,24 @@ show_usage()
 	echo "       vm -h"
 }
 
+if [ -z ${EMUFOX_HOME+x} ]
+then
+	export EMUFOX_HOME="$(dirname "$(realpath "$0")")"
+fi
+
+. "$EMUFOX_HOME"/emufox.conf
+
 case "$1" in
 	-h)
 		case "$2" in
 			start)
-				/var/vms/scripts/vm-start -h
+				"$_dir_scripts"/vm-start -h
 				;;
 			stop)
-				/var/vms/scripts/vm-stop -h
+				"$_dir_scripts"/vm-stop -h
 				;;
 			status)
-				/var/vms/scripts/vm-status -h
+				"$_dir_scripts"/vm-status -h
 				;;
 			*)
 				show_usage
@@ -36,15 +43,15 @@ case "$1" in
 		;;
 	start)
 		shift
-		/var/vms/scripts/vm-start "$@"
+		"$_dir_scripts"/vm-start "$@"
 		;;
 	stop)
 		shift
-		/var/vms/scripts/vm-stop "$@"
+		"$_dir_scripts"/vm-stop "$@"
 		;;
 	status)
 		shift
-		/var/vms/scripts/vm-status "$@"
+		"$_dir_scripts"/vm-status "$@"
 		;;
 	*)
 		show_usage >&2
