@@ -16,15 +16,14 @@ fi
 case "$1" in
 	-h)
 		case "$2" in
+			clean)
+				"$_dir_scripts"/vm-clean -h;;
 			start)
-				"$_dir_scripts"/vm-start -h
-				;;
+				"$_dir_scripts"/vm-start -h;;
 			stop)
-				"$_dir_scripts"/vm-stop -h
-				;;
+				"$_dir_scripts"/vm-stop -h;;
 			status)
-				"$_dir_scripts"/vm-status -h
-				;;
+				"$_dir_scripts"/vm-status -h;;
 			*)
 				show_usage
 				echo
@@ -35,11 +34,16 @@ case "$1" in
 				echo
 				echo "Available subcommands are:"
 				echo
+				echo "  clean"
 				echo "  start"
 				echo "  stop"
 				echo "  status"
 				;;
 		esac
+		;;
+	clean)
+		shift
+		"$_dir_scripts"/vm-clean "$@"
 		;;
 	start)
 		shift
