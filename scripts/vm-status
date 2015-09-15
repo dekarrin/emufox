@@ -6,8 +6,8 @@ show_usage()
 	firstl="$indent"
 	[ -n "$2" ] && printf -v firstl "%-${1}s" "$2";
 	cat <<ENDUSAGE
-${firstl}vm-status [-o OUTPUT [-o OUTPUT...]] [-ahs] PROFILE
-${indent}vm-status [-o OUTPUT [-o OUTPUT...]] [-ahs] -l
+${firstl}vm-status [-o OUTPUT [-o OUTPUT...]] [-i OBS_FILE] [-ahs] PROFILE
+${indent}vm-status [-o OUTPUT [-o OUTPUT...]] [-i OBS_FILE] [-ahs] -l
 ENDUSAGE
 }
 
@@ -39,6 +39,12 @@ Options:
 
   -h
       Show this help.
+
+  -i OBS_FILE
+      Ignore any VM instances that have names that are contained in the
+      specified obsolete-infofile list file. Normally, vm-status uses the lists
+      in the .obsolete directory of the EmuFox system. -i overrides this such
+      that OBS_FILE is used instead.
 
   -l
       List the status for all VM instances running instead of a particular
@@ -78,7 +84,7 @@ parse_args()
 	export OPTIND=1 # reset and export so subshells see it
 	while [ $# -ge 1 ]
 	do
-		while getopts ":ashlo:" opt
+		while getopts ":ashi:lo:" opt
 		do
 			case $opt in
 				a)
@@ -106,6 +112,8 @@ parse_args()
 					;;
 				h)
 					show_help;;
+				i)
+					opt_obs_file="$OPTARG";;
 				\?|:)
 					err_usage;;
 			esac
@@ -164,6 +172,7 @@ precalc_widths()
 	do
 		load_info "$file"
 		[ "$profile" = "$arg_profile" -o -n "$opt_list" ] || continue
+		! in_array "$statfile" "${obsolete_vms[@]}" || continue
 		index=0
 		for item in ${output_queue[@]}
 		do
@@ -180,6 +189,17 @@ precalc_widths()
 		col_widths[$index]=$(expr ${col_widths[$index]} + $col_spacing)
 		(( index++ ))
 	done
+}
+
+in_array()
+{
+	target="$1"
+	shift
+	for val in "$@"
+	do
+		[ "$target" = "$val" ] && return 0
+	done
+	return 1
 }
 
 if [ -z ${EMUFOX_HOME+x} ]
@@ -201,9 +221,11 @@ col_spacing=3
 
 opt_list=
 opt_script=
+opt_obs_file=
 opt_output_default=1
 optput_queue=()
 arg_profile=
+obsolete_vms=()
 
 parse_args "$@"
 
@@ -212,6 +234,42 @@ parse_args "$@"
 
 [ -d "$EMUFOX_HOME/.vminfo" ] || exit 0
 [ -n "$(ls "$EMUFOX_HOME/.vminfo")" ] || exit 0
+
+# load the list of obsolete VM instances
+list_files=()
+if [ -n "$opt_obs_file" ]
+then
+	list_files=("$opt_obs_file")
+elif [ -d "$EMUFOX_HOME"/.obsolete ]
+then
+	for f in "$EMUFOX_HOME"/.obsolete/*
+	do
+		[ "$f" = "$EMUFOX_HOME/.obsolete/*" ] && break
+		list_files=("${list_files[@]}" "$f")
+	done
+fi
+for obs_file in "${list_files[@]}"
+do
+	while read line
+	do
+		! in_array "$line" "${obsolete_vms[@]}" && obsolete_vms=("${obsolete_vms[@]}" "$line")
+	done < "$obs_file"
+done
+
+# check to make sure there is at least one instance that matches the profile
+# and that is not obsolete
+instances_exist=
+for file in "$EMUFOX_HOME"/.vminfo/*
+do
+	load_info "$file"
+	[ "$profile" = "$arg_profile" -o -n "$opt_list" ] || continue
+	if ! in_array "$statfile" "${obsolete_vms[@]}"
+	then
+		instances_exist=1
+		break
+	fi
+done
+[ -n "$instances_exist" ] || exit 0
 
 # setup col_widths var
 index=0
@@ -242,7 +300,8 @@ do
 	load_info "$file"
 
 	[ "$profile" = "$arg_profile" -o -n "$opt_list" ] || continue
-
+	! in_array "$statfile" "${obsolete_vms[@]}" || continue
+	
 	output=
 	index=0
 	s=
