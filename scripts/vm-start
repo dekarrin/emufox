@@ -31,42 +31,60 @@ obtain_lock()
 
 show_usage()
 {
-	echo "usage:  vm-start [-c CDIMAGE] [-d DISPLAY] [-k LAYOUT] [-hf] PROFILE"
+	[ -n "$1" ] && printf -v indent "%-${1}s";
+	firstl="$indent"
+	[ -n "$2" ] && printf -v firstl "%-${1}s" "$2";
+	cat <<ENDUSAGE
+${firstl}vm-start [-c CDIMAGE] [-d DISPLAY] [-k LAYOUT] [-hf] PROFILE
+ENDUSAGE
+}
+
+err_usage()
+{
+	show_usage 8 "usage:" >&2
+	exit 1
 }
 
 show_help()
 {
 	show_usage
-	echo
-	echo "Starts a virtual machine"
-	echo
-	echo "Arguments:"
-	echo "  PROFILE     The name of the profile to load the VM settings from."
-	echo "              There must exist a file with the name <profile>.conf in the"
-	echo "              profiles directory of Emufox."
-	echo
-	echo "Options:"
-	echo "  -c CDIMAGE  Attach a CD drive backed by the given image file to the VM"
-	echo "              and set the CD drive as the VM's boot device."
-	echo
-	echo "  -d DISPLAY  The type of display to start the VM with. Available"
-	echo "              display types are:"
-	echo "                vnc       -  Start a local VNC server on the next available"
-	echo "                             display. This is the default option."
-	echo "                headless  -  Do not attach a display."
-	echo
-	echo "  -f          Force the immediate creation of a VM instance, bypassing"
-	echo "              the wait for any currently-running processes that are"
-	echo "              creating a VM. If another process is creating a VM at the"
-	echo "              same time when -f is used, that VM instance and the one"
-	echo "              being started by the current invokation may compete for"
-	echo "              resources."
-	echo
-	echo "  -h          Show this help."
-	echo
-	echo "  -k LAYOUT   The type of keyboard layout to use with the VM. This is"
-	echo "              necessary if the VM is started with a VNC display and the"
-	echo "              keyboard layout is not en-us (the default option)."
+	cat <<ENDHELP
+
+Starts a virtual machine
+
+Arguments:
+  PROFILE
+      The name of the profile to load the VM settings from. There must exist a
+      file with the name <profile>.conf in the profiles directory of Emufox.
+
+Options:
+  -c CDIMAGE
+      Attach a CD drive backed by the given image file to the VM and set that
+      drive as the VM's boot device.
+
+  -d DISPLAY
+      The type of display to start the VM with. Available display types are:
+        vnc -
+            Start a local VNC server on the next available display. This is the
+            default option.
+        headless -
+            Do not attach a display.
+
+  -f
+      Force the immediate creation of a VM instance, bypassing the wait for any
+      currently-running processes that are creating a VM. If another process is
+      creating a VM at the same time when -f is used, that VM instance and the
+      one being started by the current invokation may compete for resources.
+
+  -h
+      Show this help.
+
+  -k LAYOUT
+      The type of keyboard layout to use with the VM. This is necessary if the
+      VM is started with a VNC display and the keyboard layout is not en-us (the
+      default option).
+ENDHELP
+	exit 0
 }
 
 parse_args()
@@ -98,24 +116,13 @@ parse_args()
 					fi
 					;;
 				f)
-					opt_force=1
-					;;
+					opt_force=1;;
 				h)
-					show_help
-					exit 0
-					;;
+					show_help;;
 				k)
-					opt_keyboard="$OPTARG"
-					;;
-					
-				\?)
-					show_usage >&2
-					exit 1
-					;;
-				:)
-					show_usage >&2
-					exit 1
-					;;
+					opt_keyboard="$OPTARG";;
+				\?|:)
+					err_usage;;
 			esac
 		done
 		shift $(expr $OPTIND \- 1)
@@ -123,7 +130,7 @@ parse_args()
 		shift 1
 		OPTIND=1
 	done
-	[ ${#cmdargs[@]} -lt $minargs ] && { show_usage >&2; exit 1; }
+	[ ${#cmdargs[@]} -lt $minargs ] && err_usage
 	if [ -f "$_dir_profiles/${cmdargs[0]}.conf" ]
 	then
 		arg_profile="${cmdargs[0]}"

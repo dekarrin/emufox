@@ -2,22 +2,24 @@
 
 show_usage()
 {
-cat <<-ENDUSAGE
-vm-clean [-ahf] [-r OBS_FILE] [-w OBS_FILE]
+	[ -n "$1" ] && printf -v indent "%-${1}s";
+	firstl="$indent"
+	[ -n "$2" ] && printf -v firstl "%-${1}s" "$2";
+	cat <<ENDUSAGE
+${firstl}vm-clean [-ahf] [-r OBS_FILE] [-w OBS_FILE]
 ENDUSAGE
 }
 
 err_usage()
 {
-	echo -n "usage: " >&2
-	show_usage >&2
+	show_usage 8 "usage:" >&2
 	exit 1
 }
 
 show_help()
 {
 	show_usage
-	cat <<-ENDHELP
+	cat <<ENDHELP
 
 Cleans all unused/obsolete virtual machine info files
 
@@ -44,6 +46,7 @@ Options:
       EMUFOX_HOME) is used instead. By default, only files in the default
       location are used by vm-status to remove obselete entries from its output.
 ENDHELP
+	exit 0
 }
 
 parse_args()
@@ -59,21 +62,13 @@ parse_args()
 				f)
 					opt_use_file=1;;
 				h)
-					show_help
-					exit 0
-					;;
+					show_help;;
 				r)
 					opt_read_file="$OPTARG";;
 				w)
 					opt_write_file="$OPTARG";;
-				\?)
-					show_usage >&2
-					exit 1
-					;;
-				:)
-					show_usage >&2
-					exit 1
-					;;
+				\?|:)
+					err_usage;;
 			esac
 		done
 		shift $(expr $OPTIND \- 1)

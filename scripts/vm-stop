@@ -1,22 +1,37 @@
 #!/bin/bash
 
 show_usage()
+{	[ -n "$1" ] && printf -v indent "%-${1}s";
+	firstl="$indent"
+	[ -n "$2" ] && printf -v firstl "%-${1}s" "$2";
+	cat <<ENDUSAGE
+${firstl}vm-stop [-h] PROFILE
+ENDUSAGE
+}
+
+err_usage()
 {
-	echo "usage:  vm-stop [-h] PROFILE"
+	show_usage 8 "usage:" >&2
+	exit 1
 }
 
 show_help()
 {
 	show_usage
-	echo
-	echo "Stops all instances of a virtual machine profile"
-	echo
-	echo "Arguments:"
-	echo "  PROFILE    The name of the profile to stop. All instances of that"
-	echo "             profile are immediately halted."
-	echo
-	echo "Options:"
-	echo "  -h         Show this help."
+	cat <<ENDHELP
+
+Stops all instances of a virtual machine profile
+
+Arguments:
+  PROFILE
+      The name of the profile to stop. All instances of that profile are
+      immediately halted.
+
+Options:
+  -h
+      Show this help.
+ENDHELP
+	exit 0
 }
 
 parse_args()
@@ -28,17 +43,9 @@ parse_args()
 		do
 			case $opt in
 				h)
-					show_help
-					exit 0
-					;;
-				\?)
-					show_usage >&2
-					exit 1
-					;;
-				:)
-					show_usage >&2
-					exit 1
-					;;
+					show_help;;
+				\?|:)
+					err_usage;;
 			esac
 		done
 		shift $(expr $OPTIND \- 1)

@@ -2,56 +2,75 @@
 
 show_usage()
 {
-	echo "usage:  vm-status [-o OUTPUT [-o OUTPUT...]] [-ahs] PROFILE"
-	echo "        vm-status [-o OUTPUT [-o OUTPUT...]] [-ahs] -l"
+	[ -n "$1" ] && printf -v indent "%-${1}s";
+	firstl="$indent"
+	[ -n "$2" ] && printf -v firstl "%-${1}s" "$2";
+	cat <<ENDUSAGE
+${firstl}vm-status [-o OUTPUT [-o OUTPUT...]] [-ahs] PROFILE
+${indent}vm-status [-o OUTPUT [-o OUTPUT...]] [-ahs] -l
+ENDUSAGE
+}
+
+err_usage()
+{
+	show_usage 8 "usage:" >&2
+	exit 1
 }
 
 show_help()
 {
 	show_usage
-	echo
-	echo "Checks the status of the virtual machines"
-	echo
-	echo "Arguments:"
-	echo "  PROFILE    The name of the profile to check the status of. The status"
-	echo "             for each instace of that profile is displayed, or there"
-	echo "             will be no output if no instances of that profile are"
-	echo "             running."
-	echo
-	echo "Options:"
-	echo "  -a         Show extended information on each VM instance. Under normal"
-	echo "             execution, some pieces of information are not displayed. -a"
-	echo "             is equivalent to passing a -o option for every possible"
-	echo "             output type. If any -o options are passed along with -a,"
-	echo "             that output option will be duplicated."
-	echo
-	echo "  -h         Show this help."
-	echo
-	echo "  -l         List the status for all VM instances running instead of"
-	echo "             just a single profile's instances."
-	echo
-	echo "  -o OUTPUT  Display only the specified type of output. Multiple -o"
-	echo "             options may be specified. The following types of output are"
-	echo "             accepted as a parameter to -o:"
-	echo "               bridge    -  The name of the bridge interface the VM is"
-	echo "                            using (if any; will be '-' if the VM does"
-	echo "                            not use bridged networking and vm-status is"
-	echo "                            run in 'script mode' with -s)."
-	echo "               display   -  The display that the VM is using (if any;"
-	echo "                            will be '-' if the VM is running in"
-	echo "                            headless mode and vm-status is run in"
-	echo "                            'script mode' with -s)."
-	echo "               pid       -  The process ID of the VM's monitor console."
-	echo "               profile   -  The name of the profile of the VM."
-	echo "               screen    -  The name of the screen session to which the"
-	echo "                            VMs monitor console is attached."
-	echo "               statfile  -  The name of the file that contains"
-	echo "                            information on the running VM. This file"
-	echo "                            will be located in the .vminfo directory of"
-	echo "                            the EmuFox system."
-	echo
-	echo "  -s         Execute in 'script mode'; output is formatted in a way that"
-	echo "             makes it easy to process the output with scripts."
+	cat <<ENDHELP
+
+Checks the status of the virtual machines
+
+Arguments:
+  PROFILE
+      The name of the profile to check the status of. The status for each
+      instace of that profile is displayed. If no instances of that profile are
+      running, no output is displayed.
+
+Options:
+  -a
+      Show extended information on each VM instance. Under normal execution,
+      some information is not displayed. -a is equivalent to passing a -o option
+      for every possible output type. If any -o options are passed along with
+      -a, that output option will be duplicated.
+
+  -h
+      Show this help.
+
+  -l
+      List the status for all VM instances running instead of a particular
+      profile's instances.
+
+  -o OUTPUT
+      Display only the specified type of output. Multiple -o options may be
+      specified. The following types of output are accepted as parameters to -o:
+        bridge -
+          The name of the bridge interface the VM is using (if any; will be '-'
+          if the VM does not use bridged networking and vm-status is run in
+          'script mode' with -s).
+        display -
+          The display that the VM is using (if any; will be '-' if the VM is
+          running in headless mode and vm-status is run in 'script mode' with
+         -s).
+        pid -
+          The process ID of the VM's monitor console.
+        profile -
+          The name of the profile of the VM.
+        screen -
+          The name of the screen session to which the VM's monitor console is
+          attached.
+        statfile -
+          The name of the file that contains information on the running VM. This
+          file will be located in the .vminfo directory of the EmuFox system.
+
+  -s
+      Execute in 'script mode'; output is formatted in a way that makes it easy
+      to process the output with scripts.
+ENDHELP
+	exit 0
 }
 
 parse_args()
@@ -67,11 +86,9 @@ parse_args()
 					output_queue=("${output_queue[@]}" pid profile screen display bridge statfile)
 					;;
 				l)
-					opt_list=1
-					;;
+					opt_list=1;;
 				s)
-					opt_script=1
-					;;
+					opt_script=1;;
 				o)
 					if [ "$OPTARG" = bridge -o \
 					     "$OPTARG" = display -o \
@@ -88,17 +105,9 @@ parse_args()
 					fi
 					;;
 				h)
-					show_help
-					exit 0
-					;;
-				\?)
-					show_usage >&2
-					exit 1
-					;;
-				:)
-					show_usage >&2
-					exit 1
-					;;
+					show_help;;
+				\?|:)
+					err_usage;;
 			esac
 		done
 		shift $(expr $OPTIND \- 1)
@@ -106,13 +115,8 @@ parse_args()
 		shift 1
 		OPTIND=1
 	done
-	if [ ${#cmdargs[@]} -lt 1 -a -z "$opt_list" ]
-	then
-		show_usage >&2
-		exit 1
-	else
-		arg_profile="${cmdargs[0]}"
-	fi
+	[ ${#cmdargs[@]} -lt 1 -a -z "$opt_list" ] && err_usage
+	arg_profile="${cmdargs[0]}"
 }
 
 default()
