@@ -1,0 +1,53 @@
+#!/bin/bash
+
+show_usage()
+{
+	echo "usage: vm COMMAND COMMAND-PARAMS"
+	echo "       vm -h"
+}
+
+case "$1" in
+	-h)
+		case "$2" in
+			start)
+				/var/vms/scripts/vm-start -h
+				;;
+			stop)
+				/var/vms/scripts/vm-stop -h
+				;;
+			status)
+				/var/vms/scripts/vm-status -h
+				;;
+			*)
+				show_usage
+				echo
+				echo "Control virtual machines"
+				echo
+				echo "Invoke \`vm -h' to see this help, otherwise invoke \`vm COMMAND'"
+				echo "to execute the subcommand."
+				echo
+				echo "Available subcommands are:"
+				echo
+				echo "  start"
+				echo "  stop"
+				echo "  status"
+				;;
+		esac
+		;;
+	start)
+		shift
+		/var/vms/scripts/vm-start "$@"
+		;;
+	stop)
+		shift
+		/var/vms/scripts/vm-stop "$@"
+		;;
+	status)
+		shift
+		/var/vms/scripts/vm-status "$@"
+		;;
+	*)
+		show_usage >&2
+		exit 1
+		;;
+esac
