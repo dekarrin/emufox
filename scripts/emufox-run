@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# script to ensure that VM cleans its own infofile on exiting
+
+infofile="$1"
+shift
+"$@"
+rm "$infofile"

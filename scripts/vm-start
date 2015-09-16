@@ -25,6 +25,7 @@ obtain_lock()
 			[ -n "$curholder" ] && ( echo "Waiting on PID $curholder to complete..." >&2 )
 			printed=1
 		fi
+		sleep 1
 	done
 	set +o noclobber
 }
@@ -163,6 +164,40 @@ add_cfg_opt()
 	fi
 }
 
+cleanup()
+{
+	clean_exit=
+	if [ -n "$screen_session" ]
+	then
+		sleep 1 # Give VM script a chance to fail
+		screen_pid=$(ps aux | grep 'SCREEN .*/emufox-run '$infofile | grep -v grep | awk '{print $2}')
+		if [ -n "$screen_pid" ]
+		then
+			# screen (and VM) started successfully
+			script_pid=$(ps --ppid $screen_pid | tail -n 1 | awk '{print $1}')
+			monitor_pid=$(ps --ppid $script_pid | tail -n 1 | awk '{print $1}')
+			echo "$monitor_pid:$arg_profile:$disp_num:$if_name:$screen_session" > "$infofile"
+			clean_exit=1
+		fi
+	fi
+	if [ -n "$have_lock" ]
+	then
+		[ -z "$clean_exit" ] && echo "$(basename 0): VM not started" >&2
+		rm "$EMUFOX_HOME"/.vmcreate.lock >/dev/null 2>&1
+	fi
+}
+
+error()
+{
+	msg=
+	[ -n "$2" ] && msg="$(basename $0): $2"
+	echo "$msg" >&2
+	exit $1
+}
+
+trap "error 5" ERR
+trap 'cleanup' EXIT
+
 if [ -z ${EMUFOX_HOME+x} ]
 then
 	export EMUFOX_HOME=$(realpath "$(dirname "$(realpath "$0")")/..")
@@ -176,12 +211,15 @@ opt_display=vnc
 opt_keyboard=
 opt_force=
 arg_profile=
+screen_session=
+have_lock=
 
 parse_args 1 "$@"
 
 [ $(id -u) = "0" ] || { echo "error: root permissions required" >&2; exit 6; }
 
 obtain_lock
+have_lock=1
 
 . "$_dir_profiles/.default"
 . "$_dir_profiles/${arg_profile}.conf"
@@ -254,13 +292,4 @@ infofile="$EMUFOX_HOME/.vminfo/$arg_profile-$num"
 
 # spawn the VM with monitor in screen
 screen_session="$_screen_prefix$arg_profile-$num"
-screen -S "$screen_session" -dm $cmd || { echo "error: could not start screen session" >&2; exit 4; }
-
-# now get the PID of the VM monitor
-screen_pid=$(ps aux | grep 'SCREEN -S '$screen_session | grep -v grep | awk '{print $2}')
-monitor_pid=$(ps --ppid $screen_pid | tail -n 1 | awk '{print $1}')
-
-echo "$monitor_pid:$arg_profile:$disp_num:$if_name:$screen_session" > "$infofile"
-
-rm "$EMUFOX_HOME"/.vmcreate.lock
-
+screen -S "$screen_session" -dm "$_dir_scripts"/emufox-run "$infofile" $cmd || { echo "error: could not start screen session" >&2; exit 4; }
