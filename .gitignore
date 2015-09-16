@@ -8,3 +8,6 @@ profiles/*.conf
 .vmcreate.lock
 .vminfo
 .obsolete
+
+# ignore vim files:
+*.swp
