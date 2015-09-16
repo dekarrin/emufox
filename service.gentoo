@@ -1,0 +1,20 @@
+#!/sbin/runscript
+
+depend()
+{
+	need localmount net
+	after bootmisc modules
+}
+
+start()
+{
+	
+	ebegin "Starting EmuFox virtual machines"
+	start-stop-daemon --start --exec /usr/bin/emufoxd --pidfile 
+	eend $?
+}
+
+stop()
+{
+
+}
