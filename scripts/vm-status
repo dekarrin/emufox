@@ -229,6 +229,8 @@ obsolete_vms=()
 
 parse_args "$@"
 
+"$_dir_scripts"/vm-clean -a
+
 # default output queue
 [ "$opt_output_default" = 1 ] && output_queue=(pid profile screen display bridge)
 
