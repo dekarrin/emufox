@@ -68,7 +68,7 @@ Options:
         screen -
           The name of the screen session to which the VM's monitor console is
           attached.
-        statfile -
+        infofile -
           The name of the file that contains information on the running VM. This
           file will be located in the .vminfo directory of the EmuFox system.
 
@@ -89,7 +89,7 @@ parse_args()
 			case $opt in
 				a)
 					opt_output_default=
-					output_queue=("${output_queue[@]}" pid profile screen display bridge statfile)
+					output_queue=("${output_queue[@]}" pid profile screen display bridge infofile)
 					;;
 				l)
 					opt_list=1;;
@@ -101,7 +101,7 @@ parse_args()
 					     "$OPTARG" = profile -o \
 					     "$OPTARG" = pid -o \
 					     "$OPTARG" = screen -o \
-					     "$OPTARG" = statfile ]
+					     "$OPTARG" = infofile ]
 					then
 						opt_output_default=
 						output_queue=("${output_queue[@]}" "$OPTARG")
@@ -154,7 +154,7 @@ load_info()
 	display=$(echo "$info" | cut -d ':' -f 3 | default $defval)
 	bridge=$(echo "$info" | cut -d ':' -f 4 | default $defval)
 	screen=$(echo "$info" | cut -d ':' -f 5)
-	statfile="$(basename "$1")"
+	infofile="$(basename "$1")"
 }
 
 precalc_widths()
@@ -172,7 +172,7 @@ precalc_widths()
 	do
 		load_info "$file"
 		[ "$profile" = "$arg_profile" -o -n "$opt_list" ] || continue
-		! in_array "$statfile" "${obsolete_vms[@]}" || continue
+		! in_array "$infofile" "${obsolete_vms[@]}" || continue
 		index=0
 		for item in ${output_queue[@]}
 		do
@@ -215,7 +215,7 @@ titles[profile]="VM Profile"
 titles[display]="VNC Display"
 titles[bridge]="Bridge Interface"
 titles[screen]="Screen Session"
-titles[statfile]="Info File"
+titles[infofile]="Info File"
 
 col_spacing=3
 
@@ -265,7 +265,7 @@ for file in "$EMUFOX_HOME"/.vminfo/*
 do
 	load_info "$file"
 	[ "$profile" = "$arg_profile" -o -n "$opt_list" ] || continue
-	if ! in_array "$statfile" "${obsolete_vms[@]}"
+	if ! in_array "$infofile" "${obsolete_vms[@]}"
 	then
 		instances_exist=1
 		break
@@ -302,7 +302,7 @@ do
 	load_info "$file"
 
 	[ "$profile" = "$arg_profile" -o -n "$opt_list" ] || continue
-	! in_array "$statfile" "${obsolete_vms[@]}" || continue
+	! in_array "$infofile" "${obsolete_vms[@]}" || continue
 	
 	output=
 	index=0
