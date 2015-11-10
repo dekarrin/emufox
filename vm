@@ -24,6 +24,8 @@ case "$1" in
 				"$_dir_scripts"/vm-stop -h;;
 			status)
 				"$_dir_scripts"/vm-status -h;;
+			list)
+				"$_dir_scripts"/vm-list -h;;
 			*)
 				show_usage
 				echo
@@ -56,6 +58,10 @@ case "$1" in
 	status)
 		shift
 		"$_dir_scripts"/vm-status "$@"
+		;;
+	list)
+		shift
+		"$_dir_scripts"/vm-list "$@"
 		;;
 	*)
 		show_usage >&2
