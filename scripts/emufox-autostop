@@ -1,0 +1,12 @@
+#!/bin/bash
+
+stats="$(vm status -sl -o profile)"
+
+while [ -n "$stats" ]
+do
+	for l in "$stats"
+	do
+		vm stop "$l"
+		break
+	done
+done

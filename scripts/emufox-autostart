@@ -1,0 +1,10 @@
+#!/bin/bash
+
+for p in "$(vm list)"
+do
+	if [ "$(echo $p | cut -d ':' -f 4)" = "1" ]
+	then
+		prof="$(echo $p | cut -d ':' -f 1)"
+		vm start "$prof"
+	fi
+done

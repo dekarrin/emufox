@@ -10,11 +10,13 @@ start()
 {
 	
 	ebegin "Starting EmuFox virtual machines"
-	start-stop-daemon --start --exec /usr/bin/emufoxd --pidfile 
+	/usr/bin/emufox-autostart
 	eend $?
 }
 
 stop()
 {
-
+	ebegin "Stopping EmuFox virtual machines"
+	/usr/bin/emufox-autostop
+	eend $?
 }
