@@ -101,8 +101,8 @@ output_info()
 	prof_memory=$(echo "$vm_memory" | default "(not set)")
 	prof_graphics=$(echo "$vm_graphics" | default "(not set)")
 	prof_networking=$(echo "$vm_networking" | default "(not set)")
-	prof_image=$(echo "$vm_image" | default "(not set)")
 	prof_instances=$(vm status -s $1 | wc -l)
+	prof_max_instances=$(echo "$vm_max_instances" | default "Unlimited")
 
 	case "$vm_autostart" in
 		1|On|on|Yes|yes|True|true)
@@ -114,9 +114,41 @@ output_info()
 	esac
 
 	echo "$prof_name - Profile Name: $1"
+	[ -n "$vm_description" ] && echo "${indent}$vm_description"
+	echo "${indent}-----------------"
 	echo "${indent}Instances Running: $prof_instances"
+	echo "${indent}Maxmimum Instances: $prof_max_instances"
 	echo "${indent}Autostart at System Boot: $prof_autostart"
-	echo "${indent}Disk Image: $prof_image"
+	echo "${indent}-----------------"
+	if [ -z "$vm_image_1" -a -z "$vm_image_2" -a -z "$vm_image_3" -a -z "$vm_cd" ]
+	then
+		echo "${indent}No block devices attached"
+	else
+		if [ -n "$vm_image_1" ]
+		then
+			opt="$(echo "$vm_image_1" | cut -s -d ',' -f 2-)"
+			[ -n "$opt" ] && opt=" (options: $opt)"
+			echo "${indent}Disk Image: $vm_image1$opt"
+		fi
+		if [ -n "$vm_image_2" ]
+		then
+			opt="$(echo "$vm_image_2" | cut -s -d ',' -f 2-)"
+			[ -n "$opt" ] && opt=" (options: $opt)"
+			echo "${indent}Disk Image: $vm_image2$opt"
+		fi
+		if [ -n "$vm_image_3" ]
+		then
+			opt="$(echo "$vm_image_3" | cut -s -d ',' -f 2-)"
+			[ -n "$opt" ] && opt=" (options: $opt)"
+			echo "${indent}Disk Image: $vm_image3$opt"
+		fi
+		if [ -n "$vm_cd" ]
+		then
+			opt="$(echo "$vm_cd" | cut -s -d ',' -f 2-)"
+			[ -n "$opt" ] && opt=" (options: $opt)"
+			echo "${indent}Attached CD: $vm_cd$opt"
+		fi
+	fi
 	echo "${indent}-----------------"
 	echo "${indent}Machine Options: $prof_machine"
 	echo "${indent}Host Type: $prof_host"

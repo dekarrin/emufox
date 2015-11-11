@@ -4,11 +4,50 @@
 #
 # This file must NOT be modified unless a default setting is to be changed.
 
+# The display name of the VM
 vm_name=""
+
+# Some notes describing the VM
+vm_description=""
+
+# Guest machine option string
 vm_machine=""
+
+# Guest CPU type
 vm_cpu=""
+
+# Memory allocated to guest
 vm_memory=""
+
+# VGA card on guest
 vm_graphics=""
+
+# Guest networking model
 vm_networking=""
-vm_image=""
+
+# Path to disk image #1; can also contain certain options separated by commas
+# Must not contain the following options: if, file, media
+vm_image_1=""
+
+# Path to disk image #2; can also contain certain options separated by commas
+# Must not contain the following options: if, file, media
+vm_image_2=""
+
+# Path to disk image #3; can also contain certain options separated by commas
+# Must not contain the following options: if, file, media
+vm_image_3=""
+
+# Path to CD image/device; can also contain certain options separated by commas
+# Must not contain the following options: if, file, media
+vm_cd=""
+
+# The maximum number of instances of this profile that are allowed to run simultaneously
+vm_max_instances=""
+
+# Whether an instance of this profile is automatically started at system boot
 vm_autostart="false"
+
+# All other options to the virtual machine guest. These options must not handle
+# functionality already covered by previous options
+vm_options=""
+
