@@ -6,8 +6,8 @@ show_usage()
 	firstl="$indent"
 	[ -n "$2" ] && printf -v firstl "%-${1}s" "$2";
 	cat <<ENDUSAGE
-${firstl}vm-status [-o OUTPUT [-o OUTPUT...]] [-i OBS_FILE] [-ahs] PROFILE
-${indent}vm-status [-o OUTPUT [-o OUTPUT...]] [-i OBS_FILE] [-ahs] -l
+${firstl}vm-status [-o OUTPUT [-o OUTPUT]...] [-i OBS_FILE] [-ahs] PROFILE
+${indent}vm-status [-o OUTPUT [-o OUTPUT]...] [-i OBS_FILE] [-ahs] -l
 ENDUSAGE
 }
 

@@ -41,8 +41,8 @@ vm_image_3=""
 # Must not contain the following options: if, file, media
 vm_cd=""
 
-# The maximum number of instances of this profile that are allowed to run simultaneously
-vm_max_instances=""
+# The maximum number of instances of this profile that are allowed to run simultaneously. Set to  empty for unlimited.
+vm_max_instances="1"
 
 # Whether an instance of this profile is automatically started at system boot
 vm_autostart="false"

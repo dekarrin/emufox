@@ -6,7 +6,7 @@ show_usage()
 	firstl="$indent"
 	[ -n "$2" ] && printf -v firstl "%-${1}s" "$2";
 	cat <<ENDUSAGE
-${firstl}vm-list [-sh]
+${firstl}vm-list [-o OUTPUT [-o OUTPUT]...] [-hs]
 ENDUSAGE
 }
 
@@ -26,6 +26,29 @@ Lists available virtual machine profiles and their status
 Options:
   -h
       Show this help.
+
+  -o OUTPUT
+      Display only the specified type of output. Multiple -o options may be
+      specified. The following types of output are accepted as parameters to -o:
+        id -
+	  The profile ID of the virtual machine. This is the ID that is used to
+	  specify that profile in emufox commands. It is equivalent to the name
+	  of the configuration file of the profile, without the trailing
+	  '.conf'; i.e. a profile whose configuration file is called
+	  'profile1.conf' has an ID of 'profile1'. This ID will always be
+	  displayed first in the output of vm-list regardless of whether it is
+	  specifiyed with a '-o' option; specifying it with one will cause it to
+	  appear twice in the output.
+        name -
+          The human-readable display title of the VM profile.
+	description -
+	  The human-readable description of the VM profile.
+	machine -
+	  The virtual machine hardware options passed to the emulator.
+	cpu -
+	  The CPU type that is emulated in the guest system.
+	memory -
+	  The amount of memory that is allocated to the guest system.
 
   -s
       Execute in 'script mode'; output is formatted in a way that makes it easy
@@ -70,6 +93,20 @@ default()
 	done
 }
 
+show_block_device()
+{
+	indent="$1"
+	block_name="$2"
+	raw_image_line="$3"
+	if [ -n "$raw_image_line" ]
+	then
+		image_path="$(echo $raw_image_line | cut -d ',' -f 1)"
+		opt="$(echo "$raw_image_line" | cut -s -d ',' -f 2-)"
+		[ -n "$opt" ] && opt=" (options: $opt)"
+		echo "${indent}Attached $block_name: $image_path$opt"
+	fi
+}
+
 output_info_script()
 {
 	. "$_dir_profiles/.default"
@@ -85,7 +122,7 @@ output_info_script()
 			;;
 	esac
 
-	echo "$1:$vm_name:$vm_instances:$vm_autostart:$vm_image:$vm_machine:$vm_host:$vm_cpu:$vm_memory:$vm_graphics:$vm_networking"
+	echo "$1:$vm_name:$vm_instances:$vm_autostart:$vm_image:$vm_machine:$vm_host:$vm_cpu:$vm_memory:$vm_graphics:$vm_networking:$vm_description"
 }
 
 output_info()
@@ -103,6 +140,7 @@ output_info()
 	prof_networking=$(echo "$vm_networking" | default "(not set)")
 	prof_instances=$(vm status -s $1 | wc -l)
 	prof_max_instances=$(echo "$vm_max_instances" | default "Unlimited")
+	prof_options=$(echo "$vm_options" | default "(none)")
 
 	case "$vm_autostart" in
 		1|On|on|Yes|yes|True|true)
@@ -124,38 +162,19 @@ output_info()
 	then
 		echo "${indent}No block devices attached"
 	else
-		if [ -n "$vm_image_1" ]
-		then
-			opt="$(echo "$vm_image_1" | cut -s -d ',' -f 2-)"
-			[ -n "$opt" ] && opt=" (options: $opt)"
-			echo "${indent}Disk Image: $vm_image1$opt"
-		fi
-		if [ -n "$vm_image_2" ]
-		then
-			opt="$(echo "$vm_image_2" | cut -s -d ',' -f 2-)"
-			[ -n "$opt" ] && opt=" (options: $opt)"
-			echo "${indent}Disk Image: $vm_image2$opt"
-		fi
-		if [ -n "$vm_image_3" ]
-		then
-			opt="$(echo "$vm_image_3" | cut -s -d ',' -f 2-)"
-			[ -n "$opt" ] && opt=" (options: $opt)"
-			echo "${indent}Disk Image: $vm_image3$opt"
-		fi
-		if [ -n "$vm_cd" ]
-		then
-			opt="$(echo "$vm_cd" | cut -s -d ',' -f 2-)"
-			[ -n "$opt" ] && opt=" (options: $opt)"
-			echo "${indent}Attached CD: $vm_cd$opt"
-		fi
+		show_block_device "$indent" "Disk Image" "$vm_image_1"
+		show_block_device "$indent" "Disk Image" "$vm_image_2"
+		show_block_device "$indent" "Disk Image" "$vm_image_3"
+		show_block_device "$indent" "CD" "$vm_cd"
 	fi
 	echo "${indent}-----------------"
 	echo "${indent}Machine Options: $prof_machine"
-	echo "${indent}Host Type: $prof_host"
 	echo "${indent}CPU: $prof_cpu"
 	echo "${indent}Memory: $prof_memory"
 	echo "${indent}Graphics: $prof_graphics"
-	echo "${indent}Networking: $prof_networking"
+	echo "${indent}Networking Model: $prof_networking"
+	echo "${indent}-----------------"
+	echo "${indent}Additional Options: $prof_options"
 	echo
 }
 
